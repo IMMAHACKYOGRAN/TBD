@@ -18,16 +18,18 @@ RenderWindow window;
 
 SDL_Texture* tiles;
 SDL_Texture* dropShadow;
+SDL_Texture* overlays;
 
-Board board({5, 5}, {SCREEN_WIDTH/1.5, SCREEN_HEIGHT/1.75});
-Player player({0, 1});
+Board board({5, 5}, {SCREEN_WIDTH / 1.5, SCREEN_HEIGHT / 1.75});
+Player player({1, 0});
 
 bool running = true;
 bool gameRunning = true;
 
 iVec2 mouse;
+iVec2 isoMouse;
 
-fVec2 fIsoToScreen(fVec2 pos, int rts) {
+fVec2 fIsoToScreen(fVec2 pos, float rts) {
     fVec2 tmp = pos;
 
     tmp.x = (pos.x - pos.y) * rts / 2;
@@ -35,13 +37,14 @@ fVec2 fIsoToScreen(fVec2 pos, int rts) {
     
     return tmp; 
 }
-iVec2 iIsoToScreen(iVec2 pos, int rts) {
+iVec2 iIsoToScreen(iVec2 pos, float rts)
+{
     iVec2 tmp = pos;
 
     tmp.x = (pos.x - pos.y) * rts / 2;
     tmp.y = (pos.x + pos.y) * rts / 4;
     
-    return tmp; 
+    return tmp;
 }
 
 bool init()
@@ -54,6 +57,7 @@ bool init()
 
     tiles = window.loadTexture("res/tiles.png");
     dropShadow = window.loadTexture("res/dropshadow.png");
+    overlays = window.loadTexture("res/overlays.png");
 
 	return true;
 }
@@ -66,7 +70,6 @@ void draw()
 
         // Gameplay loop
         if(gameRunning) {
-            //board.setPos({mouse.x, mouse.y});
             float offset = sinf(SDL_GetTicks() * 0.005);
             window.render(dropShadow, board.getPos().x-renderSize*2.5, board.getPos().y-renderSize*2-8+offset, renderSize*5, renderSize*5);
             // Draw Board
@@ -77,12 +80,18 @@ void draw()
                 }
             }
 
+            // Draw Moves
+            for (int i = 0; i < player.m_legalMoves.size(); i++)
+            {
+                iVec2 isoMovePos = iIsoToScreen({player.getWorldPos().x + player.m_legalMoves[i].x, player.getWorldPos().y + player.m_legalMoves[i].y}, renderSize);
+                window.render(overlays, 0, 0, 32, 32, isoMovePos.x + board.getPos().x - renderSize / 2, isoMovePos.y + board.getPos().y - renderSize * 1.25 + offset, renderSize, renderSize);
+            }
+
             iVec2 isoPlayerPos = iIsoToScreen(player.getWorldPos(), renderSize);
             window.renderPoint(isoPlayerPos.x+board.getPos().x, isoPlayerPos.y+board.getPos().y-renderSize+offset, 0, 255, 0, 255);
 
         }
 
-        player.findLegalMoves(board.m_size);
         window.display();
 }
 
@@ -101,13 +110,16 @@ void gameLoop()
     }
 
     SDL_GetMouseState(&mouse.x, &mouse.y);
+    isoMouse = iIsoToScreen(mouse, 1 / renderSize);
+    std::cout << "x: " << isoMouse.x << " y: " << isoMouse.y << std::endl;
 
     draw();
 }
 
 int main(int argc, char* args[])
 {
-	while (running) 
+    player.findLegalMoves(board.m_size);
+    while (running) 
 	{
     	gameLoop();
     	SDL_Delay(16);
